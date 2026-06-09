@@ -1,0 +1,26 @@
+{
+  "name": "ap-automation-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "axios": "^1.17.0",
+    "date-fns": "^4.4.0",
+    "react-dropzone": "^15.0.0",
+    "react-hook-form": "^7.78.0",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.17.0",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.16"
+  }
+}
