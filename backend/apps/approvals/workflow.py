@@ -115,8 +115,8 @@ def _advance_workflow(invoice, current_stage, approver):
     except ValueError:
         next_stage = None
 
-    if next_stage and next_stage != 'payment':
-        # Create next pending approval
+    if next_stage:
+        # Create next pending approval (including payment stage)
         Approval.objects.create(
             invoice=invoice,
             stage=next_stage,
@@ -125,7 +125,9 @@ def _advance_workflow(invoice, current_stage, approver):
         )
         return True, f'Invoice advanced to {next_stage} stage.'
     else:
-        # Workflow complete
+        # All stages complete — mark as fully approved
+        invoice.status = 'payment_initiated'
+        invoice.save()
         return True, 'Invoice fully approved. Ready for payment.'
 
 

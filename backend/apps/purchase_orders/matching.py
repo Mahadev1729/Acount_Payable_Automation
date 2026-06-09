@@ -79,8 +79,8 @@ def three_way_match(purchase_order, grn, invoice):
     """
     # First run 2-way match
     two_way_status, two_way_details = two_way_match(purchase_order, invoice)
-    details = two_way_details['checks']
-    mismatches = two_way_details['mismatches']
+    details = list(two_way_details['checks'])
+    mismatches = list(two_way_details['mismatches'])
 
     # ─── GRN vs Invoice Match ─────────────────────────────────────────────────
     grn_amount = float(grn.total_received_amount)
@@ -91,9 +91,11 @@ def three_way_match(purchase_order, grn, invoice):
         details.append({'check': 'GRN Amount vs Invoice', 'status': 'matched',
                         'grn_value': grn_amount, 'inv_value': inv_total})
     else:
-        mismatches.append({'check': 'GRN Amount vs Invoice', 'status': 'mismatch',
+        mismatch_item = {'check': 'GRN Amount vs Invoice', 'status': 'mismatch',
                            'grn_value': grn_amount, 'inv_value': inv_total,
-                           'message': f'GRN ({grn_amount}) does not match Invoice ({inv_total})'})
+                           'message': f'GRN ({grn_amount}) does not match Invoice ({inv_total})'}
+        details.append(mismatch_item)
+        mismatches.append(mismatch_item)
 
     # ─── GRN Quantity vs Invoice Quantity ────────────────────────────────────
     grn_items = grn.received_items or []
@@ -102,7 +104,11 @@ def three_way_match(purchase_order, grn, invoice):
     if grn_items and inv_items:
         qty_match = _match_quantities(grn_items, inv_items)
         if not qty_match['all_matched']:
-            mismatches.append({'check': 'Quantities', 'status': 'partial', 'details': qty_match})
+            mismatch_item = {'check': 'Quantities', 'status': 'partial', 'details': qty_match}
+            details.append(mismatch_item)
+            mismatches.append(mismatch_item)
+        else:
+            details.append({'check': 'Quantities', 'status': 'matched'})
 
     # ─── Final Status ─────────────────────────────────────────────────────────
     if not mismatches:
