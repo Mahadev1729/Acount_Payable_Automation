@@ -6,7 +6,7 @@ import Layout from '../components/layout/Layout';
 import StatusBadge from '../components/ui/StatusBadge';
 import Modal from '../components/ui/Modal';
 import { purchaseOrderAPI, vendorAPI, invoiceAPI } from '../api';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { PlusIcon, MagnifyingGlassIcon, LinkIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
@@ -19,23 +19,27 @@ export default function PurchaseOrders() {
   const [showMatch, setShowMatch] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [grns, setGRNs] = useState([]);
   const [matchResult, setMatchResult] = useState(null);
   const [matching, setMatching] = useState(false);
 
   const { register: regPO, handleSubmit: handlePO, reset: resetPO } = useForm({ defaultValues: { status: 'approved' } });
-  const { register: regMatch, handleSubmit: handleMatch } = useForm({ defaultValues: { match_type: '2way' } });
+  const { register: regMatch, handleSubmit: handleMatch, control: matchControl } = useForm({ defaultValues: { match_type: '2way' } });
+  const matchType = useWatch({ control: matchControl, name: 'match_type', defaultValue: '2way' });
 
   const fetchPOs = useCallback(async () => {
     setLoading(true);
     try {
-      const [poRes, venRes, invRes] = await Promise.all([
+      const [poRes, venRes, invRes, grnRes] = await Promise.all([
         purchaseOrderAPI.getAll({ search }),
         vendorAPI.getAll({ status: 'active', page_size: 200 }),
         invoiceAPI.getAll({ page_size: 200 }),
+        purchaseOrderAPI.getGRNs({ page_size: 200 }),
       ]);
       setPOs(poRes.data.results || poRes.data.data || []);
       setVendors(venRes.data.results || venRes.data.data || []);
       setInvoices(invRes.data.results || invRes.data.data || []);
+      setGRNs(grnRes.data.results || grnRes.data.data || []);
     } catch { toast.error('Failed to load purchase orders'); }
     finally { setLoading(false); }
   }, [search]);
@@ -179,6 +183,28 @@ export default function PurchaseOrders() {
                 <option value="3way">3-Way Match (PO vs GRN vs Invoice)</option>
               </select>
             </div>
+            {/* GRN selector — only shown for 3-way match */}
+            {matchType === '3way' && (
+              <div className="form-group">
+                <label className="form-label">GRN (Goods Receipt Note) <span>*</span></label>
+                <select className="form-control" {...regMatch('grn_id', { required: matchType === '3way' })}>
+                  <option value="">— Select GRN —</option>
+                  {grns
+                    .filter(g => !showMatch || g.purchase_order === showMatch.id)
+                    .map(g => (
+                      <option key={g.id} value={g.id}>
+                        {g.grn_number} — ₹{g.total_received_amount}
+                      </option>
+                    ))}
+                  {grns.filter(g => !showMatch || g.purchase_order === showMatch.id).length === 0 && (
+                    <option disabled>No GRNs found for this PO</option>
+                  )}
+                </select>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  3-Way match requires a GRN linked to this PO.
+                </p>
+              </div>
+            )}
             <button type="submit" className="btn btn-primary w-full" style={{ justifyContent: 'center', marginBottom: 16 }} disabled={matching}>
               {matching ? <><div className="spinner" style={{ borderTopColor: 'white', width: 16, height: 16 }} /> Matching...</> : 'Run Match'}
             </button>
