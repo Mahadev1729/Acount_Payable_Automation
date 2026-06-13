@@ -19,6 +19,17 @@ const STAGE_LABELS = {
   finance_review: 'Finance Review', payment: 'Payment'
 };
 
+const STAGE_REQUIRED_ROLES = {
+  ap_review: ['ap_executive', 'admin'],
+  manager_review: ['manager', 'admin'],
+  finance_review: ['finance', 'admin'],
+  payment: ['finance', 'admin'],
+};
+
+function canUserActOnStage(userRole, stage) {
+  return STAGE_REQUIRED_ROLES[stage]?.includes(userRole);
+}
+
 export default function Approvals() {
   const { user } = useAuth();
   const [approvals, setApprovals] = useState([]);
@@ -142,13 +153,16 @@ export default function Approvals() {
                     <td style={{ fontSize: '0.82rem' }}>{a.approver_name || 'Unassigned'}</td>
                     <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{formatDate(a.assigned_at)}</td>
                     <td>
-                      {a.action === 'pending' && (
+                      {a.action === 'pending' && canUserActOnStage(user?.role, a.stage) && (
                         <button
                           className="btn btn-primary btn-sm"
                           onClick={() => { setActionModal(a); setComments(''); }}
                         >
                           <ChatBubbleLeftIcon style={{ width: 14, height: 14 }} /> Review
                         </button>
+                      )}
+                      {a.action === 'pending' && !canUserActOnStage(user?.role, a.stage) && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Awaiting reviewer</span>
                       )}
                     </td>
                   </tr>

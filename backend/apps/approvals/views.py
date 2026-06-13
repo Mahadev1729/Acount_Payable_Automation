@@ -24,13 +24,16 @@ class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
     POST /api/approvals/initiate/
     GET  /api/approvals/pending/
     """
-    queryset = Approval.objects.select_related('invoice', 'approver').order_by('-assigned_at')
+    queryset = Approval.objects.select_related('invoice', 'invoice__vendor', 'approver').order_by('-assigned_at')
     serializer_class = ApprovalSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['stage', 'action', 'invoice']
     search_fields = ['invoice__invoice_number', 'invoice__vendor_name_raw']
     ordering_fields = ['assigned_at', 'due_date']
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), 'request': self.request}
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -48,8 +51,10 @@ class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
         user_role = request.user.role
         # Find stages where this role can act
         user_stages = [stage for stage, roles in STAGE_REQUIRED_ROLES.items() if user_role in roles]
-        pending = Approval.objects.filter(stage__in=user_stages, action='pending').select_related('invoice', 'approver')
-        serializer = ApprovalSerializer(pending, many=True)
+        pending = Approval.objects.filter(
+            stage__in=user_stages, action='pending'
+        ).select_related('invoice', 'invoice__vendor', 'approver')
+        serializer = self.get_serializer(pending, many=True)
         return Response({'success': True, 'data': serializer.data, 'count': pending.count()})
 
     @action(detail=True, methods=['post'], url_path='action')
@@ -79,8 +84,9 @@ class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         if success:
+            approval.refresh_from_db()
             return Response({'success': True, 'message': message,
-                             'data': ApprovalSerializer(approval).data})
+                             'data': self.get_serializer(approval).data})
         return Response({'success': False, 'message': message}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'], url_path='initiate')
@@ -102,14 +108,17 @@ class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
         if invoice.status not in ['validated', 'po_matched']:
             return Response({
                 'success': False,
-                'message': f'Invoice must be validated before initiating workflow. Current status: {invoice.status}'
+                'message': f'Invoice must be validated or PO-matched before initiating workflow. Current status: {invoice.status}'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        approval = initiate_workflow(invoice, request.user)
+        approval, error = initiate_workflow(invoice, request.user)
+        if error:
+            return Response({'success': False, 'message': error}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response({
             'success': True,
             'message': 'Approval workflow initiated.',
-            'data': ApprovalSerializer(approval).data
+            'data': self.get_serializer(approval).data
         }, status=status.HTTP_201_CREATED)
 
 

@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import InvoiceUpload from './pages/InvoiceUpload';
 import InvoiceList from './pages/InvoiceList';
 import OCRResults from './pages/OCRResults';
+import InvoiceValidate from './pages/InvoiceValidate';
 import VendorManagement from './pages/VendorManagement';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Approvals from './pages/Approvals';
@@ -54,6 +55,7 @@ function AppRoutes() {
       <Route path="/invoices" element={<ProtectedRoute><InvoiceList /></ProtectedRoute>} />
       <Route path="/invoices/upload" element={<ProtectedRoute><InvoiceUpload /></ProtectedRoute>} />
       <Route path="/invoices/:id/ocr" element={<ProtectedRoute><OCRResults /></ProtectedRoute>} />
+      <Route path="/invoices/:id/validate" element={<ProtectedRoute><InvoiceValidate /></ProtectedRoute>} />
       <Route path="/invoices/:id" element={<ProtectedRoute><OCRResults /></ProtectedRoute>} />
       <Route path="/vendors" element={<ProtectedRoute><VendorManagement /></ProtectedRoute>} />
       <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrders /></ProtectedRoute>} />

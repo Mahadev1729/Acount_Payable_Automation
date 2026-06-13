@@ -43,8 +43,9 @@ def initiate_workflow(invoice, initiated_by):
     Start the approval workflow for a validated invoice.
     Creates the first pending approval (AP Review).
     """
-    # Cancel any existing pending approvals
-    Approval.objects.filter(invoice=invoice, action='pending').update(action='sent_back')
+    # Block if workflow already in progress
+    if Approval.objects.filter(invoice=invoice, action='pending').exists():
+        return None, 'Approval workflow is already in progress for this invoice.'
 
     # Create AP Review approval
     approval = Approval.objects.create(
@@ -54,15 +55,16 @@ def initiate_workflow(invoice, initiated_by):
         due_date=timezone.now() + timezone.timedelta(days=2)
     )
 
-    # Update invoice status
-    invoice.status = 'pending'
-    invoice.save()
+    # Keep validated/po_matched status — workflow tracked via Approval records
+    if invoice.status not in ['validated', 'po_matched']:
+        invoice.status = 'validated'
+        invoice.save()
 
     # Audit log
     _log_action(initiated_by, 'approval_action', f'Workflow initiated for Invoice #{invoice.invoice_number}',
                 'Invoice', invoice.id)
 
-    return approval
+    return approval, None
 
 
 def process_approval_action(approval, action, approver, comments=''):
@@ -89,7 +91,7 @@ def process_approval_action(approval, action, approver, comments=''):
                 'Invoice', invoice.id)
 
     if action == 'approved':
-        return _advance_workflow(invoice, approval.stage, approver)
+        return _advance_workflow(invoice, approval.stage)
     elif action == 'rejected':
         invoice.status = 'rejected'
         invoice.save()
@@ -102,7 +104,7 @@ def process_approval_action(approval, action, approver, comments=''):
     return False, 'Unknown action.'
 
 
-def _advance_workflow(invoice, current_stage, approver):
+def _advance_workflow(invoice, current_stage):
     """Move invoice to next workflow stage after approval."""
     # Update invoice status for this stage
     invoice.status = STAGE_TO_INVOICE_STATUS.get(current_stage, invoice.status)

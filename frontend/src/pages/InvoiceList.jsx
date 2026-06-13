@@ -5,11 +5,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import StatusBadge from '../components/ui/StatusBadge';
-import { invoiceAPI } from '../api';
+import { invoiceAPI, approvalAPI } from '../api';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon, FunnelIcon, EyeIcon,
-  CpuChipIcon, TrashIcon, PlusIcon, ArrowDownTrayIcon
+  CpuChipIcon, TrashIcon, PlusIcon, ArrowDownTrayIcon,
+  ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 
@@ -61,6 +62,18 @@ export default function InvoiceList() {
       fetchInvoices();
     } catch {
       toast.error('Delete failed');
+    }
+  };
+
+  const handleSubmitForApproval = async (e, id) => {
+    e.stopPropagation();
+    const tid = toast.loading('Submitting for approval...');
+    try {
+      await approvalAPI.initiateWorkflow(id);
+      toast.success('Submitted for approval workflow', { id: tid });
+      fetchInvoices();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Submit failed', { id: tid });
     }
   };
 
@@ -197,6 +210,12 @@ export default function InvoiceList() {
                           <button className="btn btn-ghost btn-sm" title="Run OCR"
                             onClick={e => handleRunOCR(e, inv.id)}>
                             <CpuChipIcon style={{ width: 15, height: 15, color: 'var(--primary)' }} />
+                          </button>
+                        )}
+                        {['validated', 'po_matched'].includes(inv.status) && (
+                          <button className="btn btn-ghost btn-sm" title="Submit for Approval"
+                            onClick={e => handleSubmitForApproval(e, inv.id)}>
+                            <ClipboardDocumentCheckIcon style={{ width: 15, height: 15, color: 'var(--success)' }} />
                           </button>
                         )}
                         <button className="btn btn-ghost btn-sm" title="Delete"

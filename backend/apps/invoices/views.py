@@ -203,7 +203,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.validation_errors = errors
 
         has_errors = any(e['severity'] == 'error' for e in errors)
-        if not has_errors and invoice.status in ['ocr_complete', 'draft', 'pending']:
+        if not has_errors and invoice.status in ['ocr_complete', 'draft', 'pending', 'validated']:
             invoice.status = 'validated'
 
         invoice.save()
